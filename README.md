@@ -191,3 +191,101 @@ Lib/test/test_subprocess.py Dataset {160086/160086}
 ```
 
 We had 4:1 compression, since the file is quite a lot larger: this is now the sort of thing you routinely do when handing HDF5 files.
+
+### More Sensible
+
+A more sensible (more typical) use is to store arrays of data with some metadata attached: an example could be images of a certain size and data type, in a stack (thus making a 3D array).
+
+```python
+import h5py
+import numpy
+
+data = numpy.zeros((512, 512, 512), dtype=numpy.uint16)
+
+for j in range(512):
+    data[j, :, :] = j
+
+with h5py.File("data.h5", "w") as f:
+    p = f.create_dataset("data", data=data, chunks=(1, 512, 512), compression="gzip")
+```
+
+This creates _in memory_ a 512x512x512 array of two byte unsigned integers i.e. 256 MB of data. then saves this to disk: the file on disk is efficiently stored thanks to the trivial `gzip` compression of constant values:
+
+```
+Grey-Area demo :) [main+1] $ h5ls -rv data.h5
+Opened "data.h5" with sec2 driver.
+/                        Grou
+    Location:  1:96
+    Links:     1
+/data                    Dataset {512/512, 512/512, 512/512}
+    Location:  1:800
+    Links:     1
+    Chunks:    {1, 512, 512} 524288 bytes
+    Storage:   268435456 logical bytes, 272836 allocated bytes, 98387.11% utilization
+    Filter-0:  deflate-1 OPT {4}
+    Type:      native unsigned short
+```
+
+In creating the data set we also gave it some hints: we passed the data array but we also passed the size of a "chunk" - this is fundamental to the efficient consideration of how to use HDF5 files and will be considered next - the data _type_ from the Numpy array was also passed through so the reader knows how the compressed bytes in the file should be interpreted.
+
+## Real HDF5
+
+The real value in HDF5 comes from considering (i) complex file structures and (ii) data sets which are too large to efficiently hold in memory. The above example created the data set in memory then saved it to disk, defining the "chunk" size. This is not an ideal way to work as it means that the whole data set _was_ in memory, but is easy as a demo. We can find a better way to do this after discussing what chunks are.
+
+### Chunks
+
+In HDF5 terms a chunk is a usefully sized quantum of data, i.e. it is big enough to compress usefully, and to contain a meaningful subset of a data set, but small enough to fit into RAM and (usually) not need slicing. A typical example could be a diffraction image, an MCA spectrum or a timepoint from a (small) 3D simulation.
+
+Within HDF5 the compression is performed on chunks, and the compressed chunks are what are written to disk in the HDF5 file. This means to read elements of that chunk the whole chunk needs to be read from disk and decompressed: this may be cached to allow neighbouring reads to be fairly efficient but that means that there _can_ be caching going on behind the scenes. This brings us to an important point:
+
+> The HDF5 libraries may perform additional operations to be helpful
+
+You need to be aware of this as it may well come back to bite you later.
+
+Sensible chunk selection may have a significant impact on the performance of your application. This is best considered by demonstration, where we first create the data file above but this time we _do not_ create the entire thing in RAM, and instead allocate the data set and fill it a chunk at a time:
+
+```python
+import h5py
+import numpy
+
+data = numpy.zeros((512, 512), dtype=numpy.uint16)
+
+with h5py.File("data.h5", "w") as f:
+    d = f.create_dataset(
+        "data",
+        dtype=numpy.uint16,
+        shape=(512, 512, 512),
+        chunks=(1, 512, 512),
+        compression="gzip",
+    )
+    for j in range(512):
+        data[:, :] = j
+        d[j] = data
+```
+
+This makes _precisely_ the same file as the example above (i.e. the bytes are identical) and takes 1.45s to run. If, instead, we were to chunk the data in the same size blocks but in an unhelpful direction it would take a lot longer to save the same data array:
+
+```python
+import h5py
+import numpy
+
+data = numpy.zeros((512, 512), dtype=numpy.uint16)
+
+with h5py.File("data.h5", "w") as f:
+    d = f.create_dataset(
+        "data",
+        dtype=numpy.uint16,
+        shape=(512, 512, 512),
+        chunks=(512, 1, 512), # N.B. this line is subtly different
+        compression="gzip",
+    )
+    for j in range(512):
+        data[:, :] = j
+        d[j] = data
+```
+
+This small change means we now have to read, decompress, write a line, compress and write 512 times for every frame: you really _really_ don't want to be doing this. Gives us axiom 2:
+
+> Yes there is abstraction but be aware what is happening under the hood.
+
+Seriously, bad chunking can have a catastrophic performance impact on your program. Do not underestimate this.
