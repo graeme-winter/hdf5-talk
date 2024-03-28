@@ -288,6 +288,62 @@ This small change means we now have to read, decompress, write a line, compress 
 
 > Yes there is abstraction but be aware what is happening under the hood.
 
-Seriously, bad chunking can have a catastrophic performance impact on your program. Do not underestimate this. I would not recommend you actually allow this to run to completion as it will take _ages_.
+Seriously, bad chunking can have a catastrophic performance impact on your program. Do not underestimate this. I would not recommend you actually allow this to run to completion as it will take _ages_. I did, and my computer regrets it as it took 11m20s.
 
 The fact that the chunks are what are stored on disk allows a few opportunities for optimisation. For example, if you have a detector which captures frames and can perform the compression on the data array in flight, you could, in principle, write that in the correct location (with a few pointers to the compression) and never have the HDF5 library manipulate the bytes at all. This is _direct chunk write_ and is fundamental to the operation of our Eiger detectors and a lot of what allows us to collect data at 500 frames / second with a 16 megapixel detector.
+
+### Working with Chunks
+
+If chunks are the fundamental storage unit, how can we work directly with them? On the most trivial level, from a consumer perspective, we can get the location (i.e. byte offset) and size of every chunk within the file and read them:
+
+```python
+import h5py
+
+with h5py.File("data.h5", "r") as f:
+    p = f["data"]
+    i = p.id
+    n = i.get_num_chunks()
+    for j in range(n):
+        c = i.get_chunk_info(j)
+        print(f"{j} => {c.byte_offset}:+{c.size}")
+```
+
+N.B. this is now using some of the lower level HDF5 APIs. This will in turn allow us to extract the chunk and decompress it for ourselves:
+
+```python
+import zlib
+
+import h5py
+import numpy
+
+off_size = []
+
+with h5py.File("data.h5", "r") as f:
+    p = f["data"]
+    i = p.id
+    n = i.get_num_chunks()
+
+    for j in range(n):
+        c = i.get_chunk_info(j)
+        off_size.append((c.byte_offset, c.size))
+
+    for j in range(n):
+        _, c = i.read_direct_chunk((j, 0, 0))
+        b = zlib.decompress(c)
+        a = numpy.frombuffer(b, dtype=numpy.uint16)
+        assert (a == j).all()
+
+with open("data.h5", "rb") as f:
+    for j, (off, size) in enumerate(off_size):
+        f.seek(off)
+        c = f.read(size)
+        b = zlib.decompress(c)
+        a = numpy.frombuffer(b, dtype=numpy.uint16)
+        assert (a == j).all()
+```
+
+N.B. reading the [docs](https://api.h5py.org/h5d.html) may help. Why would we ever want to do this? In a nutshell, performance. HDF5 has a very rudimentary model of thread safety, namely it puts a mutex around everything and calls it thread safe. This is fine if you are a data scientist fiddling around with a Jupyter notebook in lieu of using Excel, but it can punish in a high performance computing environment. The reading of the compressed chunks in HDF5 can be _very_ fast, but if you let the library do the data handling for you then you are limited to only using one thread for that.
+
+If you use "proper" threads and are willing to have a thread pool of decompressors then you can get some very good performance from the system.
+
+> The HDF5 library is very good for data access, very poor for compression handling, be prepared to work with the raw data representation
