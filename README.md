@@ -685,3 +685,60 @@ int main(int argc, char **argv) {
 ```
 
 This does not do any useful work, just reads the files, however if you wanted to decompress them or so some analysis you could easily do so.
+
+## Metadata
+
+One of the big selling points is that HDF5 is self-describing (which is obviously false) but you can annotate HDF5 files with dataset information (and groups) which may help the consumer of the data interpret the values recorded. The attributes are essentially a hash table (key / value pair; dictionary) associated with groups and datasets which can have arbitrary values stored in them, such as units, the source of the data or other "human readable" things which aid in the understanding.
+
+```python
+import datetime
+
+import h5py
+import numpy
+
+data = numpy.zeros((512, 512), dtype=numpy.uint16)
+
+with h5py.File("data.h5", "w") as f:
+    d = f.create_dataset(
+        "data",
+        dtype=numpy.uint16,
+        shape=(512, 512, 512),
+        chunks=(1, 512, 512),
+        compression="gzip",
+    )
+    for j in range(512):
+        data[:, :] = j
+        d[j] = data
+    d.attrs["source"] = "attrs.py"
+    d.attrs["author"] = "graeme-winter"
+    d.attrs["creation-timestamp"] = datetime.datetime.today().isoformat()
+```
+
+These are visible by looking with `h5ls -rvd data.h5 | less`:
+
+```
+Opened "data.h5" with sec2 driver.
+/                        Group
+    Location:  1:96
+    Links:     1
+/data                    Dataset {512/512, 512/512, 512/512}
+    Attribute: author scalar
+        Type:      variable-length null-terminated UTF-8 string
+        Data:
+               "graeme-winter"
+    Attribute: creation-timestamp scalar
+        Type:      variable-length null-terminated UTF-8 string
+        Data:
+               "2024-03-28T15:25:18.937333"
+    Attribute: source scalar
+        Type:      variable-length null-terminated UTF-8 string
+        Data:
+               "attrs.py"
+    Location:  1:800
+    Links:     1
+    Chunks:    {1, 512, 512} 524288 bytes
+    Storage:   268435456 logical bytes, 272836 allocated bytes, 98387.11% utilization
+    Filter-0:  deflate-1 OPT {4}
+```
+
+... etc. (many numbers follow). This is the essence of NeXus files, which build an ontology on top of HDF5 to allow data to be annotated (outside of scope here.)
