@@ -352,6 +352,42 @@ Where are we? We have some idea now of how to save data to files and how to acce
 
 ## Advanced 0: Compression Schemes
 
+Over the years there have been any number of different data compression schemes created, some of which are lossless and others lossy: which you elect to use depends entirely on your use case, and which works best is a function of the properties of your data and your personal use of the word best, e.g. do you mean time to compress / decompress or the ratio? If your fundamental data have a low degree of entropy (i.e. in general the next datum can often be predicted from prior knowledge) then most compression schemes will work well. If, however, your data are highly variable i.e. it is hard to predict the coming bits from the previous ones then the data will usually compress poorly. In some cases some intermediate manipulation of the data may reduce the entropy, thus improving the compression.
+
+For data from photon counting detectors - perhaps one of our biggest uses of HDF5 - the data typically have a fairly low entropy, since many of the pixels are "background" and have small numbers of photons, following a Poisson distribution (the rate constant for this is frequently less than 1.0). Therefore, despite the in memory representation of the data taking e.g. 16 bits / pixel most pixels have an entropy far below this, allowing compression by a number of means. Since the majority of the image is background e.g.:
+
+![A diffraction image module](./module.png)
+
+We can further reduce the entropy by re-arranging the bits before performing the compression. This bit shuffle operation works on a block of data (e.g. 4096 x `uint16_t` values) and performs a massive transpose, putting 4096 x LSB, then next least significant bit, ... up to the most significant bits. This will typically result in very long sequences of null bytes, which compress very well with run-length encoding schemes such as LZ4 and friends. For the Eiger, we therefore have a compression scheme of `bslz4` i.e. a bitshuffle filter and LZ4 compression, with the data considered as blocks of a relatively small size.
+
+If you look at the actual _bytes_ of a bitshuffle / LZ4 compressed chunk you then see: 8 bytes for the final length of the uncompressed image, then 4 bytes which defines the block size of file image, after which we get the compressed `lz4` blocks which themselves start with a four-byte header defining the _compressed_ size of that block.
+
+Why would anyone care about any of this? Performance. If we want to decompress the data _really_ fast we could write an implementation of decompression which unpacks and unshuffles every block concurrently because we know exactly the address in the array it needs to end up in. How could you ever have access to that degree of paralellism? FPGA or GPU.
+
+### Accessing Compression
+
+The standard HDF5 library build comes with ZLIB compression and others by default, but not `bslz4` - for this you need to get a plugin otherwise you may end up seeing
+
+```
+Ethics-Gradient i04-1-run3-ins :( [main] $ python3
+Python 3.10.8 | packaged by conda-forge | (main, Nov 22 2022, 08:25:13) [Clang 14.0.6 ] on darwin
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import h5py
+>>> f = h5py.File("Insulin_6_2_000001.h5", "r")
+>>> d = f["data"]
+>>> i = d[0]
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+  File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+  File "/Users/graeme/git/dials/conda_base/lib/python3.10/site-packages/h5py/_hl/dataset.py", line 768, in __getitem__
+    return self._fast_reader.read(args)
+  File "h5py/_selector.pyx", line 376, in h5py._selector.Reader.read
+OSError: Can't read data (can't open directory: /Users/graeme/git/dials/conda_base/lib/hdf5/plugin)
+```
+
+Adding the `hdf5plugin` package to your Python install, and `import hdf5plugin` will resolve this. Obviously, most of the discussion which brought us to here has been around performance so you are unlikely to be working in Python, so you can fetch the source code [from here](https://github.com/kiyo-masui/bitshuffle) and add this to your application: this is very straightforward.
+
 ## Advanced 1: Virtual Data Sets
 
 ## Advanced 2: Concurrency
