@@ -714,31 +714,52 @@ with h5py.File("data.h5", "w") as f:
     d.attrs["creation-timestamp"] = datetime.datetime.today().isoformat()
 ```
 
-These are visible by looking with `h5ls -rvd data.h5 | less`:
+These are visible by looking with `h5ls -rvd data.h5 | less` or more usefully `h5dump -A data.h5`:
 
 ```
-Opened "data.h5" with sec2 driver.
-/                        Group
-    Location:  1:96
-    Links:     1
-/data                    Dataset {512/512, 512/512, 512/512}
-    Attribute: author scalar
-        Type:      variable-length null-terminated UTF-8 string
-        Data:
-               "graeme-winter"
-    Attribute: creation-timestamp scalar
-        Type:      variable-length null-terminated UTF-8 string
-        Data:
-               "2024-03-28T15:25:18.937333"
-    Attribute: source scalar
-        Type:      variable-length null-terminated UTF-8 string
-        Data:
-               "attrs.py"
-    Location:  1:800
-    Links:     1
-    Chunks:    {1, 512, 512} 524288 bytes
-    Storage:   268435456 logical bytes, 272836 allocated bytes, 98387.11% utilization
-    Filter-0:  deflate-1 OPT {4}
-```
+HDF5 "data.h5" {
+GROUP "/" {
+   DATASET "data" {
+      DATATYPE  H5T_STD_U16LE
+      DATASPACE  SIMPLE { ( 512, 512, 512 ) / ( 512, 512, 512 ) }
+      ATTRIBUTE "author" {
+         DATATYPE  H5T_STRING {
+            STRSIZE H5T_VARIABLE;
+            STRPAD H5T_STR_NULLTERM;
+            CSET H5T_CSET_UTF8;
+            CTYPE H5T_C_S1;
+         }
+         DATASPACE  SCALAR
+         DATA {
+         (0): "graeme-winter"
+         }
+      }
+      ATTRIBUTE "creation-timestamp" {
+         DATATYPE  H5T_STRING {
+            STRSIZE H5T_VARIABLE;
+            STRPAD H5T_STR_NULLTERM;
+            CSET H5T_CSET_UTF8;
+            CTYPE H5T_C_S1;
+         }
+         DATASPACE  SCALAR
+         DATA {
+         (0): "2024-03-28T15:25:18.937333"
+         }
+      }
+      ATTRIBUTE "source" {
+         DATATYPE  H5T_STRING {
+            STRSIZE H5T_VARIABLE;
+            STRPAD H5T_STR_NULLTERM;
+            CSET H5T_CSET_UTF8;
+            CTYPE H5T_C_S1;
+         }
+         DATASPACE  SCALAR
+         DATA {
+         (0): "attrs.py"
+         }
+      }
+   }
+}
+}```
 
 ... etc. (many numbers follow). This is the essence of NeXus files, which build an ontology on top of HDF5 to allow data to be annotated (outside of scope here.)
