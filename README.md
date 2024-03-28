@@ -344,6 +344,12 @@ with open("data.h5", "rb") as f:
 
 N.B. reading the [docs](https://api.h5py.org/h5d.html) may help. Why would we ever want to do this? In a nutshell, performance. HDF5 has a very rudimentary model of thread safety, namely it puts a mutex around everything and calls it thread safe. This is fine if you are a data scientist fiddling around with a Jupyter notebook in lieu of using Excel, but it can punish in a high performance computing environment. The reading of the compressed chunks in HDF5 can be _very_ fast, but if you let the library do the data handling for you then you are limited to only using one thread for that.
 
-If you use "proper" threads and are willing to have a thread pool of decompressors then you can get some very good performance from the system.
+If you use "proper" threads and are willing to have a thread pool of decompressors then you can get some very good performance from the system. You will also have to know a little more about the data, but you can extract that from the HDF5 file. It is worth noting that the direct reading _without_ going via the HDF5 libraries is 100% thread safe and you could hit that across every CPU you have access to without problems: I would not feel confident saying the same about the direct chunk reading (though it is probably OK.)
 
 > The HDF5 library is very good for data access, very poor for compression handling, be prepared to work with the raw data representation
+
+Where are we? We have some idea now of how to save data to files and how to access it in a moderately graceful manner. This is the most trivial use case for HDF5 but also probably one of the most useful. There is far more we can do even with _this_ before we move on to the next steps.
+
+## Advanced 1: Virtual Data Sets
+
+## Advanced 2: Concurrency
