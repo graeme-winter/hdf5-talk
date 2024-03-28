@@ -430,6 +430,37 @@ if __name__ == "__main__":
 
 This will print files and ranges contributing to the virtual data set. Creating the VDS requires first creating a `VirtualLayout` of a given shape and type, then populating this from `VirtualSource`s which contribute the actual data, before finally creating the actual virtual data set which includes the "fill" value for those array elements which are otherwise undefined.
 
+> Practical comment: if you load data into a viewer and every pixel has value e.g. `-1` then it is probably missing the files with the real data
+
+Simplest example is to take the code above which made a single large data set, then make two smaller data sets which reference it - these work by using a virtual source to represent the source and a layout to define the destination, with slicing used to define the joins. As such, you can merge an arbitrary number of input data sets into an arbitrary number of output data sets:
+
+```python
+import h5py
+import numpy
+
+data = numpy.zeros((512, 512), dtype=numpy.uint16)
+
+with h5py.File("data.h5", "w") as f:
+    d = f.create_dataset(
+        "data",
+        dtype=numpy.uint16,
+        shape=(512, 512, 512),
+        chunks=(1, 512, 512),
+        compression="gzip",
+    )
+    for j in range(512):
+        data[:, :] = j
+        d[j] = data
+
+    # now create a couple of virtual data sets pointing into this data from one
+    # source data set which corresponds to the whole volume
+    source = h5py.VirtualSource(".", "data", shape=(512, 512, 512))
+    for j in range(2):
+        layout = h5py.VirtualLayout(shape=(256, 512, 512), dtype=numpy.uint16)
+        layout[:, :, :] = source[j * 256 : (j + 1) * 256]
+        _ = f.create_virtual_dataset(f"data{j}", layout, fillvalue=-1)
+```
+
 ### Merging Into a Larger Data Set
 
 ## Advanced 2: Concurrency
