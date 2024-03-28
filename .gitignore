@@ -1,2 +1,4 @@
 # output artefacts
 *.h5
+*.o
+a.out
