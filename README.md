@@ -350,6 +350,8 @@ If you use "proper" threads and are willing to have a thread pool of decompresso
 
 Where are we? We have some idea now of how to save data to files and how to access it in a moderately graceful manner. This is the most trivial use case for HDF5 but also probably one of the most useful. There is far more we can do even with _this_ before we move on to the next steps.
 
+> If you are using direct chunk read as above with `read_direct_chunk` or the underlying `C` library, or fetching the data yourself with the offset and size _you must_ apply all the correct decompression filters etc. as described below to make sense of the values which come out.
+
 ## Advanced 0: Compression Schemes
 
 Over the years there have been any number of different data compression schemes created, some of which are lossless and others lossy: which you elect to use depends entirely on your use case, and which works best is a function of the properties of your data and your personal use of the word best, e.g. do you mean time to compress / decompress or the ratio? If your fundamental data have a low degree of entropy (i.e. in general the next datum can often be predicted from prior knowledge) then most compression schemes will work well. If, however, your data are highly variable i.e. it is hard to predict the coming bits from the previous ones then the data will usually compress poorly. In some cases some intermediate manipulation of the data may reduce the entropy, thus improving the compression.
@@ -387,6 +389,8 @@ OSError: Can't read data (can't open directory: /Users/graeme/git/dials/conda_ba
 ```
 
 Adding the `hdf5plugin` package to your Python install, and `import hdf5plugin` will resolve this. Obviously, most of the discussion which brought us to here has been around performance so you are unlikely to be working in Python, so you can fetch the source code [from here](https://github.com/kiyo-masui/bitshuffle) and add this to your application: this is very straightforward.
+
+> Aside on compression, values etc. - to humans the numbers 0, 1 and -1 are very similar however the symbols we use to represent those (i.e. the bits) are very different! These are `0x0000`, `0x0001` and `0xffff` respectively for unsigned shorts: this in turn can put a lot of entropy into the bitstream.
 
 ## Advanced 1: Virtual Data Sets
 
