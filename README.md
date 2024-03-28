@@ -288,4 +288,6 @@ This small change means we now have to read, decompress, write a line, compress 
 
 > Yes there is abstraction but be aware what is happening under the hood.
 
-Seriously, bad chunking can have a catastrophic performance impact on your program. Do not underestimate this.
+Seriously, bad chunking can have a catastrophic performance impact on your program. Do not underestimate this. I would not recommend you actually allow this to run to completion as it will take _ages_.
+
+The fact that the chunks are what are stored on disk allows a few opportunities for optimisation. For example, if you have a detector which captures frames and can perform the compression on the data array in flight, you could, in principle, write that in the correct location (with a few pointers to the compression) and never have the HDF5 library manipulate the bytes at all. This is _direct chunk write_ and is fundamental to the operation of our Eiger detectors and a lot of what allows us to collect data at 500 frames / second with a 16 megapixel detector.

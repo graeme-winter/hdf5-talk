@@ -9,9 +9,16 @@ with h5py.File("data.h5", "r") as f:
     p = f["data"]
     i = p.id
     n = i.get_num_chunks()
+
     for j in range(n):
         c = i.get_chunk_info(j)
         off_size.append((c.byte_offset, c.size))
+
+    for j in range(n):
+        _, c = i.read_direct_chunk((j, 0, 0))
+        b = zlib.decompress(c)
+        a = numpy.frombuffer(b, dtype=numpy.uint16)
+        assert (a == j).all()
 
 with open("data.h5", "rb") as f:
     for j, (off, size) in enumerate(off_size):
