@@ -154,3 +154,40 @@ CODE_OF_CONDUCT.md       Dataset {630/630}
 I didn't say at all that this is _helpful_.
 
 This does show some useful pointers on how to explore HDF5 files however: we see that the percent utilisation is above 100: this says that the data were compressed at about 1.6:1 ratio, which is to be expected for a small text file. Real scientific data, particularly when sparse, can compress much more.
+
+More usefully: I want to look for a specific data set in this file:
+
+```
+Grey-Area hdf5-talk :) [main] $ h5ls -r /tmp/python/Python-3.10.14.h5 | grep subprocess
+/Doc/library/asyncio-subprocess.rst Dataset {11673}
+/Doc/library/subprocess.rst Dataset {59383}
+/Lib/_bootsubprocess.py  Dataset {2675}
+/Lib/asyncio/base_subprocess.py Dataset {8843}
+/Lib/asyncio/subprocess.py Dataset {7405}
+/Lib/subprocess.py       Dataset {84917}
+/Lib/test/subprocessdata Group
+/Lib/test/subprocessdata/fd_status.py Dataset {835}
+/Lib/test/subprocessdata/input_reader.py Dataset {130}
+/Lib/test/subprocessdata/qcat.py Dataset {159}
+/Lib/test/subprocessdata/qgrep.py Dataset {253}
+/Lib/test/subprocessdata/sigchild_ignore.py Dataset {757}
+/Lib/test/test_asyncio/test_subprocess.py Dataset {26892}
+/Lib/test/test_subprocess.py Dataset {160086}
+/Modules/_posixsubprocess.c Dataset {37870}
+```
+
+Then I want to see how well `/Lib/test/test_subprocess.py` was compressed:
+
+```
+Grey-Area hdf5-talk :) [main] $ h5ls -rv /tmp/python/Python-3.10.14.h5/Lib/test/test_subprocess.py
+Opened "/tmp/python/Python-3.10.14.h5" with sec2 driver.
+Lib/test/test_subprocess.py Dataset {160086/160086}
+    Location:  1:19728907
+    Links:     1
+    Chunks:    {10006} 10006 bytes
+    Storage:   160086 logical bytes, 39648 allocated bytes, 403.77% utilization
+    Filter-0:  deflate-1 OPT {9}
+    Type:      native unsigned char
+```
+
+We had 4:1 compression, since the file is quite a lot larger: this is now the sort of thing you routinely do when handing HDF5 files.
