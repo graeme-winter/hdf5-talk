@@ -390,4 +390,46 @@ Adding the `hdf5plugin` package to your Python install, and `import hdf5plugin` 
 
 ## Advanced 1: Virtual Data Sets
 
+The HDF5 files as described above are a literal (if chunked) representation of the data as in memory: while this is completely reasonable it is not always as _flexible_ as we may want. For example, you may have data sets recorded in one stream which are correct but do not follow a "logical" structure e.g. if you take a sequence of data sets one after the other and save them sequentially: individual datasets may be a subset of the full. Equally, a modular detector could reasonably record to a number of parallel data streams that we may want to reconstruct into a single view: HDF5 offers opportunities to address all these cases.
+
+### Accessing a Subset
+
+The subset challenge is a simple one: wanting a dataset which is a view onto a subset of the larger data set, e.g. frames 1800-3599 from a total data set recorded from frames 0-3599. This could be made a little more complex if the images themselves are recorded as blocks of 1,000 frames (this is not an idle or artificial example, this is exactly how things work in MX.) In this case we have:
+
+```
+|  data 0  |  data 1  |  data 2  | ..3 |
+0123456789 0123456789 0123456789 012345
+|   dataset 1 / 2  |   dataset 2 / 2   |
+```
+
+The terminology used in the HDF5 libraries is to consider the former to be the virtual source, and the latter to be a virtual data set made from the sources. The "real" data in `data 0, 1` will contribute to dataset 1, whilst the remains of `data 1` and the whole of `data 2, 3` will make up dataset 2: this is a 1D exmaple (though the datasets could consist of multidimensional arrays) but it is perfectly legitimate to create different shape virtual data sets.
+
+To look at the structure of a virtual data set is easiest from Python, though it is also straightforward to inspect with the HDF5 command line tools or read from C. For example, a real data set taken on i03 at Diamond could have 3,600 images referenced in `/entry/data/data` but these are spread across four files as mentioned above:
+
+```python
+import sys
+
+import h5py
+
+def vds(vds_file, dataset="/entry/data/data"):
+    """Print the information about VDS for vdsfile/dataset"""
+
+    f = h5py.File(vds_file, "r")
+    d = f[dataset]
+    v = d.virtual_sources()
+
+    for _v in v:
+        vspace, file_name, dset_name, src_space = _v
+        vbounds = vspace.get_select_bounds()
+        print(vbounds[0][0], vbounds[1][0], file_name, dset_name)
+
+
+if __name__ == "__main__":
+    vds(sys.argv[1])
+```
+
+This will print files and ranges contributing to the virtual data set. Creating the VDS requires first creating a `VirtualLayout` of a given shape and type, then populating this from `VirtualSource`s which contribute the actual data, before finally creating the actual virtual data set which includes the "fill" value for those array elements which are otherwise undefined.
+
+### Merging Into a Larger Data Set
+
 ## Advanced 2: Concurrency
