@@ -20,7 +20,7 @@ def h5zip(name, path):
                 data = numpy.fromfile(
                     os.path.join(dirpath, filename), dtype=numpy.uint8
                 )
-                g.create_dataset(filename, data=data, compression="gzip")
+                g.create_dataset(filename, data=data, compression="gzip", compression_opts=9)
 
 
 h5zip(sys.argv[1], sys.argv[2])
