@@ -1,10 +1,10 @@
-# HDF5
+# HDF5: a Very Rough Guide
 
 Exploring the HDF5 file, on disk, with standard tooling.
 
 ## Introduction
 
-OK, so I got sucked into giving a presentation to the group on what is HDF5 etc. which I thought "OK fine how hard can that be?" and indeed it is not hard, however as soon as you want to delve deep it rapidly turns into a fractal rabbit hole. That is fine. You just have to have the 🐰🕳 marker at the top and warn people not to dig too deep.
+OK, so I got sucked into giving a presentation to the group on what is HDF5 etc. which I thought "OK fine how hard can that be?" and indeed it is not hard, however as soon as you want to delve deep it rapidly turns into a fractal rabbit hole. That is fine. You just have to have the rabbit hole marker at the top and warn people not to dig too deep.
 
 I started digging.
 
