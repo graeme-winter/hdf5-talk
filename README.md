@@ -350,6 +350,8 @@ If you use "proper" threads and are willing to have a thread pool of decompresso
 
 Where are we? We have some idea now of how to save data to files and how to access it in a moderately graceful manner. This is the most trivial use case for HDF5 but also probably one of the most useful. There is far more we can do even with _this_ before we move on to the next steps.
 
+## Advanced 0: Compression Schemes
+
 ## Advanced 1: Virtual Data Sets
 
 ## Advanced 2: Concurrency
