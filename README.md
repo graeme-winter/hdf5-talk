@@ -690,6 +690,87 @@ int main(int argc, char **argv) {
 
 This does not do any useful work, just reads the files, however if you wanted to decompress them or so some analysis you could easily do so.
 
+## Advanced 3: Internal and External Links
+
+So far everything which has been described has had all the data in a single HDF5 file, with data in one place. Like file systems HDF5 also allows links within the file, either "hard" links which are a second reference to the same data or "soft" links, which are an alias for another _reference_ to the data. The latter of these also allows that referenced object to be in another file, and this will be accessed transparently: when combined with virtual data sets this can allow some very flexible data handling.
+
+### Hard Links
+
+Hard links are a second, equivalent, reference to an existing data set e.g.
+
+```python
+import h5py
+import numpy
+
+data = numpy.zeros((512, 512), dtype=numpy.uint16)
+
+with h5py.File("data.h5", "w") as f:
+    d = f.create_dataset(
+        "data",
+        dtype=numpy.uint16,
+        shape=(512, 512, 512),
+        chunks=(1, 512, 512),
+        compression="gzip",
+    )
+    for j in range(512):
+        data[:, :] = j
+        d[j] = data
+
+    g = f.create_group("entry")
+    h = g.create_group("data")
+    h["data"] = d
+```
+
+Is our routine data set, but now with a link to the same data under `/entry/data/data` to keep the NeXus folks happy:
+
+```
+Grey-Area links :) [main] $ h5ls -rv data.h5/entry/data/data
+Opened "data.h5" with sec2 driver.
+entry/data/data          Dataset {512/512, 512/512, 512/512}
+    Location:  1:800
+    Links:     2
+    Chunks:    {1, 512, 512} 524288 bytes
+    Storage:   268435456 logical bytes, 272836 allocated bytes, 98387.11% utilization
+    Filter-0:  deflate-1 OPT {4}
+    Type:      native unsigned short
+```
+
+### Soft Links
+
+A soft link is different: it will remember the _name_ of the target rather than the target data, so if you remove the target you will get a dangling link: it does not however require that the target _exists_ so you can make the link in anticipation of it existing:
+
+```python
+    h["data_link"] = h5py.SoftLink("/data")
+```
+
+Added to the end of the above script gives:
+
+```
+HDF5 "data.h5" {
+DATASET "/entry/data/data_link" {
+   DATATYPE  H5T_STD_U16LE
+   DATASPACE  SIMPLE { ( 512, 512, 512 ) / ( 512, 512, 512 ) }
+   DATA {
+   (0,0,0): 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   (0,0,22): 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   (0,0,43): 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+```
+
+etc. but will be explicit that this is a soft link with e.g. `h5ls`.
+
+### External Links
+
+Once you have the idea of a soft link there is no real requirement that this is in the same file as the original: you can very easily have this be a relative path to another file, viz:
+
+```python
+with h5py.File("data.nxs", "w") as f:
+    g = f.create_group("entry")
+    h = g.create_group("data")
+    h["data"] = h5py.ExternalLink("data.h5", "/data")
+```
+
+This creates a second file, with the NeXus structure, pointing at the original data - this allows the data to come from a different source to the metadata, which is _very_ useful in a high performance data environment.
+
 ## Metadata
 
 One of the big selling points is that HDF5 is self-describing (which is obviously false) but you can annotate HDF5 files with dataset information (and groups) which may help the consumer of the data interpret the values recorded. The attributes are essentially a hash table (key / value pair; dictionary) associated with groups and datasets which can have arbitrary values stored in them, such as units, the source of the data or other "human readable" things which aid in the understanding.
