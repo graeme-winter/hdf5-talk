@@ -769,7 +769,18 @@ with h5py.File("data.nxs", "w") as f:
     h["data"] = h5py.ExternalLink("data.h5", "/data")
 ```
 
-This creates a second file, with the NeXus structure, pointing at the original data - this allows the data to come from a different source to the metadata, which is _very_ useful in a high performance data environment.
+This creates a second file, with the NeXus structure, pointing at the original data - this allows the data to come from a different source to the metadata, which is _very_ useful in a high performance data environment. Data can be transparently accessed as:
+
+```python
+Grey-Area links :) [main] $ python3
+Python 3.10.10 | packaged by conda-forge | (main, Mar 24 2023, 20:17:34) [Clang 14.0.6 ] on darwin
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import h5py
+>>> f = h5py.File("data.nxs")
+>>> d = f["/entry/data/data"]
+>>> d.shape
+(512, 512, 512)
+```
 
 ## Metadata
 
