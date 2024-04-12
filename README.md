@@ -151,7 +151,7 @@ CODE_OF_CONDUCT.md       Dataset {630/630}
          32, 112, 114, 111, 106, 101, 99, 116, 46, 10, 10
 ```
 
-I didn't say at all that this is _helpful_.
+I didn't say at all that this is _helpful_, though a swift `print("".join(map(chr, handle["CODE_OF_CONDUCT.md"])))` will print something useful.
 
 This does show some useful pointers on how to explore HDF5 files however: we see that the percent utilisation is above 100: this says that the data were compressed at about 1.6:1 ratio, which is to be expected for a small text file. Real scientific data, particularly when sparse, can compress much more.
 
